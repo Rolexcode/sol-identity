@@ -18,20 +18,20 @@ function isValidPublicKey(key) {
 }
 
 /**
- * Gets the oldest transaction to find true wallet age
- * Paginates backwards through history using before cursor
- * Stops when no more transactions found
+ * Paginates through transaction history to get
+ * true wallet age AND accurate transaction count
+ * Stops at 20 pages (1000 transactions) to protect RPC credits
  * @param {PublicKey} publicKey
- * @returns {number} - Account age in days
+ * @returns {{ accountAge: number, transactionCount: number }}
  */
-async function getTrueWalletAge(publicKey) {
+async function getWalletHistory(publicKey) {
   try {
     let lastSignature = undefined;
     let oldestBlockTime = null;
+    let totalCount = 0;
+    const MAX_PAGES = 20;
 
-    // Paginate up to 10 pages (500 transactions back)
-    // Enough for most wallets without burning RPC credits
-    for (let page = 0; page < 10; page++) {
+    for (let page = 0; page < MAX_PAGES; page++) {
       const options = { limit: 50 };
       if (lastSignature) options.before = lastSignature;
 
@@ -40,35 +40,37 @@ async function getTrueWalletAge(publicKey) {
         options
       );
 
-      // No more transactions — we reached the beginning
       if (signatures.length === 0) break;
 
-      // Track oldest block time seen
+      totalCount += signatures.length;
+
+      // Track oldest block time
       const oldest = signatures[signatures.length - 1];
       if (oldest?.blockTime) {
         oldestBlockTime = oldest.blockTime;
       }
 
-      // If we got less than 50, we reached the beginning
+      // Reached the beginning of history
       if (signatures.length < 50) break;
 
       // Move cursor back for next page
       lastSignature = signatures[signatures.length - 1].signature;
     }
 
-    if (!oldestBlockTime) return 0;
+    const accountAge = oldestBlockTime
+      ? Math.floor((Date.now() - oldestBlockTime * 1000) / (1000 * 60 * 60 * 24))
+      : 0;
 
-    return Math.floor(
-      (Date.now() - oldestBlockTime * 1000) / (1000 * 60 * 60 * 24)
-    );
+    return { accountAge, transactionCount: totalCount };
   } catch (error) {
-    console.error("Error getting wallet age:", error);
-    return 0;
+    console.error("Error getting wallet history:", error);
+    return { accountAge: 0, transactionCount: 0 };
   }
 }
 
 /**
- * Fetches wallet data needed for trust score calculation
+ * Fetches all wallet data needed for trust score calculation
+ * Runs balance fetch and history pagination in parallel
  * @param {string} walletAddress
  * @returns {object} - { balance, transactionCount, accountAge }
  */
@@ -80,20 +82,19 @@ export async function getWalletData(walletAddress) {
 
     const publicKey = new PublicKey(walletAddress);
 
-    // Run all three fetches in parallel for speed
-    const [balanceLamports, signatures, accountAge] = await Promise.all([
+    // Run balance and history in parallel for speed
+    const [balanceLamports, history] = await Promise.all([
       connection.getBalance(publicKey),
-      connection.getSignaturesForAddress(publicKey, { limit: 50 }),
-      getTrueWalletAge(publicKey),
+      getWalletHistory(publicKey),
     ]);
 
     const balance = balanceLamports / LAMPORTS_PER_SOL;
 
-    // Total count capped at 50 for now
-    // Full count would require full pagination (too slow for UI)
-    const transactionCount = signatures.length;
-
-    return { balance, transactionCount, accountAge };
+    return {
+      balance,
+      transactionCount: history.transactionCount,
+      accountAge: history.accountAge,
+    };
   } catch (error) {
     console.error("Error fetching wallet data:", error);
     return { balance: 0, transactionCount: 0, accountAge: 0 };

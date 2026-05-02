@@ -9,6 +9,8 @@ import TrustScore from "./components/TrustScore";
 import { getWalletData } from "./utils/solana";
 import { getDomainFromWallet, getDomainRecords, getWalletFromDomain } from "./utils/sns";
 import { calculateTrustScore } from "./utils/trustScore";
+import LoadingSteps from "./components/LoadingSteps";
+import AgentsPage from "./components/AgentsPage";
 
 const endpoint = clusterApiUrl("mainnet-beta");
 const wallets = [new PhantomWalletAdapter()];
@@ -61,6 +63,8 @@ function AppContent() {
   const [identityData, setIdentityData] = useState(null);
   const [searchInput, setSearchInput] = useState("");
   const [walletConnected, setWalletConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState("identity");
+
 
   const t = isDark ? THEMES.dark : THEMES.light;
 
@@ -118,8 +122,9 @@ function AppContent() {
       display:"flex",
       flexDirection:"column",
       alignItems:"center",
-      justifyContent:"center",
-      padding:"24px",
+justifyContent:"flex-start",
+paddingTop:"40px",
+paddingBottom:"40px",      padding:"24px 16px",
       fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
       transition:"background 0.3s ease"
     }}>
@@ -146,8 +151,13 @@ function AppContent() {
         {t.toggleIcon}
       </button>
 
-      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:"480px"}}>
-
+<div style={{
+  position:"relative",
+  zIndex:1,
+  width:"100%",
+  maxWidth:"min(680px, 100%)",
+  margin:"0 auto"
+}}>
         {/* Header */}
         <div style={{textAlign:"center",marginBottom:"40px"}}>
           <div style={{
@@ -173,155 +183,167 @@ function AppContent() {
           </p>
         </div>
 
-        {/* Search */}
-        <div style={{marginBottom:"20px"}}>
-          <div style={{
-            display:"flex",gap:"8px",
-            background:t.inputBg,
-            border:`1px solid ${t.inputBorder}`,
-            borderRadius:"14px",padding:"6px 6px 6px 16px",
-            transition:"all 0.3s ease"
-          }}>
-            <input
-              type="text"
-              placeholder="Enter .sol domain or wallet address..."
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSearch()}
-              style={{
-                flex:1,background:"transparent",border:"none",
-                color:t.text,fontSize:"14px",outline:"none",padding:"6px 0",
-                transition:"color 0.3s ease"
-              }}
-            />
+         {/* Tabs */}
+        <div style={{display:"flex",gap:"8px",marginBottom:"24px",background:t.inputBg,borderRadius:"12px",padding:"4px"}}>
+          {["identity","agents"].map(tab => (
             <button
-              onClick={handleSearch}
-              disabled={loading}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
               style={{
-                background:"#7c3aed",border:"none",borderRadius:"10px",
-                padding:"10px 20px",color:"white",fontWeight:"600",
-                fontSize:"13px",cursor:"pointer",whiteSpace:"nowrap",
-                opacity:loading?0.6:1
+                flex:1,background:activeTab===tab?"#7c3aed":"transparent",
+                border:"none",borderRadius:"10px",padding:"8px",
+                color:activeTab===tab?"white":t.textMuted,
+                fontWeight:"600",fontSize:"12px",cursor:"pointer",
+                textTransform:"capitalize",transition:"all 0.2s ease"
               }}
             >
-              {loading ? "Loading..." : "Search"}
+              {tab === "identity" ? "Identity Lookup" : "Agent Registry"}
             </button>
-          </div>
-          <p style={{color:t.textFaint,fontSize:"11px",textAlign:"center",margin:"8px 0 0 0"}}>
-            Try: bonfida.sol · wallet.sol · or paste any address
-          </p>
+          ))}
         </div>
 
-        {/* Divider */}
-        <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"20px"}}>
-          <div style={{flex:1,height:"1px",background:t.divider}} />
-          <span style={{color:t.textFaint,fontSize:"11px",letterSpacing:"0.5px"}}>OR CONNECT WALLET</span>
-          <div style={{flex:1,height:"1px",background:t.divider}} />
-        </div>
-
-        {/* Wallet connect */}
-        <div style={{display:"flex",justifyContent:"center",marginBottom:"32px"}}>
-          <LoginButton onConnected={handleWalletConnected} />
-        </div>
-
-        {/* Loading */}
-        {loading && (
-          <div style={{textAlign:"center",padding:"40px 0"}}>
-            <div style={{
-              width:"32px",height:"32px",borderRadius:"50%",
-              border:"2px solid rgba(124,58,237,0.2)",
-              borderTop:"2px solid #7c3aed",
-              margin:"0 auto 16px",
-              animation:"spin 0.8s linear infinite"
-            }} />
-            <p style={{color:t.textMuted,fontSize:"13px",margin:0}}>
-              Fetching on-chain identity...
-            </p>
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div style={{
-            background:"rgba(239,68,68,0.08)",
-            border:"1px solid rgba(239,68,68,0.2)",
-            borderRadius:"12px",padding:"14px 16px",marginBottom:"16px"
-          }}>
-            <p style={{color:"#f87171",fontSize:"13px",margin:0}}>{error}</p>
-          </div>
-        )}
-
-        {/* Results */}
-        {identityData && !loading && (
-          <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
-            <ProfileCard
-              walletAddress={identityData.walletAddress}
-              domain={identityData.domain}
-              records={identityData.records}
-              theme={t}
-            />
-            <TrustScore scoreData={identityData.scoreData} theme={t} />
-            <div style={{
-              background:t.surface,border:`1px solid ${t.surfaceBorder}`,
-              borderRadius:"16px",padding:"20px",transition:"all 0.3s ease"
-            }}>
-              <p style={{
-                color:t.textFaint,fontSize:"10px",textTransform:"uppercase",
-                letterSpacing:"1.5px",margin:"0 0 16px 0",fontWeight:"600"
-              }}>Wallet Stats</p>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"16px",textAlign:"center"}}>
-                <div>
-                  <p style={{color:t.text,fontWeight:"700",fontSize:"22px",margin:"0 0 4px 0",letterSpacing:"-0.5px"}}>
-                    {identityData.walletData.balance.toFixed(2)}
-                  </p>
-                  <p style={{color:t.textFaint,fontSize:"11px",margin:0}}>SOL Balance</p>
-                </div>
-                <div>
-                  <p style={{color:t.text,fontWeight:"700",fontSize:"22px",margin:"0 0 4px 0",letterSpacing:"-0.5px"}}>
-                    {identityData.walletData.transactionCount.toLocaleString()}
-                  </p>
-                  <p style={{color:t.textFaint,fontSize:"11px",margin:0}}>Transactions</p>
-                </div>
-                <div>
-                  <p style={{color:t.text,fontWeight:"700",fontSize:"22px",margin:"0 0 4px 0",letterSpacing:"-0.5px"}}>
-                    {identityData.walletData.accountAge}
-                  </p>
-                  <p style={{color:t.textFaint,fontSize:"11px",margin:0}}>Days Old</p>
-                </div>
+        {/* Identity tab content */}
+        {activeTab === "identity" && (
+          <>
+            {/* Search */}
+            <div style={{marginBottom:"20px"}}>
+              <div style={{
+                display:"flex",gap:"8px",
+                background:t.inputBg,
+                border:`1px solid ${t.inputBorder}`,
+                borderRadius:"14px",padding:"6px 6px 6px 16px",
+                transition:"all 0.3s ease"
+              }}>
+                <input
+                  type="text"
+                  placeholder="Enter .sol domain or wallet address..."
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSearch()}
+                  style={{
+                    flex:1,background:"transparent",border:"none",
+                    color:t.text,fontSize:"14px",outline:"none",padding:"6px 0",
+                    transition:"color 0.3s ease"
+                  }}
+                />
+                <button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  style={{
+                    background:"#7c3aed",border:"none",borderRadius:"10px",
+                    padding:"10px 20px",color:"white",fontWeight:"600",
+                    fontSize:"13px",cursor:"pointer",whiteSpace:"nowrap",
+                    opacity:loading?0.6:1
+                  }}
+                >
+                  {loading ? "Loading..." : "Search"}
+                </button>
               </div>
+              <p style={{color:t.textFaint,fontSize:"11px",textAlign:"center",margin:"8px 0 0 0"}}>
+                Try: bonfida.sol · wallet.sol · or paste any address
+              </p>
             </div>
 
-            {/* SDK callout */}
-            <div style={{
-              background:t.sdkBg,border:`1px solid ${t.sdkBorder}`,
-              borderRadius:"16px",padding:"16px 20px",
-              display:"flex",alignItems:"center",justifyContent:"space-between",
-              transition:"all 0.3s ease"
-            }}>
-              <div>
-                <p style={{color:t.badgeText,fontSize:"12px",fontWeight:"600",margin:"0 0 2px 0"}}>
-                  Use this in your dApp
-                </p>
-                <p style={{color:t.textMuted,fontSize:"11px",margin:0,fontFamily:"monospace"}}>
-                    const id = await getIdentity("wallet.sol")
-                </p>
-              </div>
-              
-             <a   href="https://github.com/Rolexcode/sol-identity"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  background:"rgba(124,58,237,0.2)",border:"1px solid rgba(124,58,237,0.3)",
-                  borderRadius:"8px",padding:"6px 12px",color:"#a78bfa",
-                  fontSize:"11px",fontWeight:"600",textDecoration:"none",whiteSpace:"nowrap"
-                }}
-              >
-                View Docs
-              </a>
+            {/* Divider */}
+            <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"20px"}}>
+              <div style={{flex:1,height:"1px",background:t.divider}} />
+              <span style={{color:t.textFaint,fontSize:"11px",letterSpacing:"0.5px"}}>OR CONNECT WALLET</span>
+              <div style={{flex:1,height:"1px",background:t.divider}} />
             </div>
-          </div>
+
+            {/* Wallet connect */}
+            <div style={{display:"flex",justifyContent:"center",marginBottom:"32px"}}>
+              <LoginButton onConnected={handleWalletConnected} />
+            </div>
+
+            {/* Loading */}
+            {loading && <LoadingSteps theme={t} />}
+
+            {/* Error */}
+            {error && (
+              <div style={{
+                background:"rgba(239,68,68,0.08)",
+                border:"1px solid rgba(239,68,68,0.2)",
+                borderRadius:"12px",padding:"14px 16px",marginBottom:"16px"
+              }}>
+                <p style={{color:"#f87171",fontSize:"13px",margin:0}}>{error}</p>
+              </div>
+            )}
+
+            {/* Results */}
+            {identityData && !loading && (
+              <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+                <ProfileCard
+                  walletAddress={identityData.walletAddress}
+                  domain={identityData.domain}
+                  records={identityData.records}
+                  theme={t}
+                />
+                <TrustScore scoreData={identityData.scoreData} theme={t} />
+                <div style={{
+                  background:t.surface,border:`1px solid ${t.surfaceBorder}`,
+                  borderRadius:"16px",padding:"20px",transition:"all 0.3s ease"
+                }}>
+                  <p style={{
+                    color:t.textFaint,fontSize:"10px",textTransform:"uppercase",
+                    letterSpacing:"1.5px",margin:"0 0 16px 0",fontWeight:"600"
+                  }}>Wallet Stats</p>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"16px",textAlign:"center"}}>
+                    <div>
+                      <p style={{color:t.text,fontWeight:"700",fontSize:"22px",margin:"0 0 4px 0",letterSpacing:"-0.5px"}}>
+                        {identityData.walletData.balance.toFixed(2)}
+                      </p>
+                      <p style={{color:t.textFaint,fontSize:"11px",margin:0}}>SOL Balance</p>
+                    </div>
+                    <div>
+                      <p style={{color:t.text,fontWeight:"700",fontSize:"22px",margin:"0 0 4px 0",letterSpacing:"-0.5px"}}>
+                        {identityData.walletData.transactionCount.toLocaleString()}
+                      </p>
+                      <p style={{color:t.textFaint,fontSize:"11px",margin:0}}>Transactions</p>
+                    </div>
+                    <div>
+                      <p style={{color:t.text,fontWeight:"700",fontSize:"22px",margin:"0 0 4px 0",letterSpacing:"-0.5px"}}>
+                        {identityData.walletData.accountAge}
+                      </p>
+                      <p style={{color:t.textFaint,fontSize:"11px",margin:0}}>Days Old</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SDK callout */}
+                <div style={{
+                  background:t.sdkBg,border:`1px solid ${t.sdkBorder}`,
+                  borderRadius:"16px",padding:"16px 20px",
+                  display:"flex",alignItems:"center",justifyContent:"space-between",
+                  transition:"all 0.3s ease"
+                }}>
+                  <div>
+                    <p style={{color:t.badgeText,fontSize:"12px",fontWeight:"600",margin:"0 0 2px 0"}}>
+                      Use this in your dApp
+                    </p>
+                    <p style={{color:t.textMuted,fontSize:"11px",margin:0,fontFamily:"monospace"}}>
+                      const id = await getIdentity("wallet.sol")
+                    </p>
+                  </div>
+                  <a href="https://github.com/Rolexcode/sol-identity"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background:"rgba(124,58,237,0.2)",border:"1px solid rgba(124,58,237,0.3)",
+                      borderRadius:"8px",padding:"6px 12px",color:"#a78bfa",
+                      fontSize:"11px",fontWeight:"600",textDecoration:"none",whiteSpace:"nowrap"
+                    }}
+                  >
+                    View Docs
+                  </a>
+                </div>
+              </div>
+            )}
+          </>
         )}
+
+        {/* Agents tab content */}
+        {activeTab === "agents" && <AgentsPage theme={t} />}
 
         {/* Footer */}
         <div style={{textAlign:"center",marginTop:"32px"}}>

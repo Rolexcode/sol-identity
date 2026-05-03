@@ -16,18 +16,17 @@ function AgentsPage({ theme: t }) {
     name: "",
     type: "Trading Agent",
     creatorWallet: "",
+    agentWallet: "",
     description: "",
   });
 
   const TYPES = ["All", "Trading Agent", "Governance Agent", "NFT Agent", "DeFi Agent", "Custom"];
 
-  // Load persisted agents on mount
   useEffect(() => {
     async function fetchAgents() {
       setLoadingAgents(true);
       const saved = await loadAgents();
       if (saved.length > 0) {
-        // Merge saved agents with sample agents — saved ones first
         setAgents([...saved, ...SAMPLE_AGENTS]);
       }
       setLoadingAgents(false);
@@ -49,6 +48,9 @@ function AgentsPage({ theme: t }) {
       domain: `${form.name.toLowerCase().replace(/\s/g, "-")}.sol`,
       type: form.type,
       creatorWallet: form.creatorWallet.slice(0, 8) + "...",
+      agentWallet: form.agentWallet
+        ? form.agentWallet.slice(0, 8) + "..." + form.agentWallet.slice(-4)
+        : "Not provided",
       trustScore: 25,
       trustLevel: "Low Trust",
       actionsExecuted: 0,
@@ -59,13 +61,18 @@ function AgentsPage({ theme: t }) {
       verified: false,
     };
 
-    // Save to Upstash
     const saved = await saveAgent(newAgent);
 
     if (saved) {
       setAgents(prev => [newAgent, ...prev]);
       setShowForm(false);
-      setForm({ name: "", type: "Trading Agent", creatorWallet: "", description: "" });
+      setForm({
+        name: "",
+        type: "Trading Agent",
+        creatorWallet: "",
+        agentWallet: "",
+        description: "",
+      });
     }
 
     setSaving(false);
@@ -73,7 +80,6 @@ function AgentsPage({ theme: t }) {
 
   return (
     <div>
-      {/* Header */}
       <div style={{ marginBottom: "24px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
           <h2 style={{ color: t.text, fontSize: "20px", fontWeight: "700", margin: 0 }}>
@@ -95,7 +101,6 @@ function AgentsPage({ theme: t }) {
         </p>
       </div>
 
-      {/* Register form */}
       {showForm && (
         <div style={{
           background: t.surface, border: `1px solid ${t.surfaceBorder}`,
@@ -129,9 +134,19 @@ function AgentsPage({ theme: t }) {
               ))}
             </select>
             <input
-              placeholder="Creator wallet address"
+              placeholder="Your wallet address (agent owner)"
               value={form.creatorWallet}
               onChange={e => setForm(p => ({ ...p, creatorWallet: e.target.value }))}
+              style={{
+                background: t.inputBg, border: `1px solid ${t.inputBorder}`,
+                borderRadius: "10px", padding: "10px 14px",
+                color: t.text, fontSize: "13px", outline: "none"
+              }}
+            />
+            <input
+              placeholder="Agent wallet address (the bot wallet)"
+              value={form.agentWallet}
+              onChange={e => setForm(p => ({ ...p, agentWallet: e.target.value }))}
               style={{
                 background: t.inputBg, border: `1px solid ${t.inputBorder}`,
                 borderRadius: "10px", padding: "10px 14px",
@@ -176,7 +191,6 @@ function AgentsPage({ theme: t }) {
         </div>
       )}
 
-      {/* Filter tabs */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
         {TYPES.map(type => (
           <button
@@ -195,7 +209,6 @@ function AgentsPage({ theme: t }) {
         ))}
       </div>
 
-      {/* Loading state */}
       {loadingAgents && (
         <div style={{ textAlign: "center", padding: "20px 0" }}>
           <p style={{ color: t.textMuted, fontSize: "13px", margin: 0 }}>
@@ -204,7 +217,6 @@ function AgentsPage({ theme: t }) {
         </div>
       )}
 
-      {/* Agent cards */}
       {!loadingAgents && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {filtered.map(agent => (

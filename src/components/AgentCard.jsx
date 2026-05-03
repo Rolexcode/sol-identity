@@ -7,7 +7,6 @@
   };
   const color = colors[agent.trustLevel] || "#f87171";
 
-  // Avoid division by zero
   const successRate = agent.actionsExecuted > 0
     ? Math.round(((agent.actionsExecuted - agent.actionsFailed) / agent.actionsExecuted) * 100)
     : 0;
@@ -20,8 +19,6 @@
       padding: "20px",
       transition: "all 0.3s ease"
     }}>
-
-      {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{
@@ -34,9 +31,7 @@
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <h3 style={{
-                color: t.text, fontSize: "15px", fontWeight: "700", margin: 0
-              }}>
+              <h3 style={{ color: t.text, fontSize: "15px", fontWeight: "700", margin: 0 }}>
                 {agent.domain}
               </h3>
               {agent.verified && (
@@ -65,14 +60,10 @@
         </div>
       </div>
 
-      {/* Description */}
-      <p style={{
-        color: t.textMuted, fontSize: "12px", margin: "0 0 16px 0", lineHeight: 1.5
-      }}>
+      <p style={{ color: t.textMuted, fontSize: "12px", margin: "0 0 16px 0", lineHeight: 1.5 }}>
         {agent.description}
       </p>
 
-      {/* Stats row */}
       <div style={{
         display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr",
         gap: "8px", marginBottom: "16px"
@@ -84,10 +75,8 @@
           { label: "Days Active", value: agent.activeDays },
         ].map(stat => (
           <div key={stat.label} style={{
-            background: t.inputBg,
-            borderRadius: "8px",
-            padding: "8px",
-            textAlign: "center"
+            background: t.inputBg, borderRadius: "8px",
+            padding: "8px", textAlign: "center"
           }}>
             <p style={{ color: t.text, fontSize: "14px", fontWeight: "700", margin: "0 0 2px 0" }}>
               {stat.value}
@@ -99,16 +88,18 @@
         ))}
       </div>
 
-      {/* Footer */}
       <div style={{
         borderTop: `1px solid ${t.surfaceBorder}`,
         paddingTop: "12px",
-        display: "flex", justifyContent: "space-between", alignItems: "center"
+        display: "flex", flexDirection: "column", gap: "4px"
       }}>
         <p style={{ color: t.textFaint, fontSize: "11px", margin: 0, fontFamily: "monospace" }}>
-          Creator: {agent.creatorWallet}
+          Owner: {agent.creatorWallet}
         </p>
-        <p style={{ color: t.textFaint, fontSize: "11px", margin: 0 }}>
+        <p style={{ color: t.textFaint, fontSize: "11px", margin: 0, fontFamily: "monospace" }}>
+          Agent: {agent.agentWallet || "Not provided"}
+        </p>
+        <p style={{ color: t.textFaint, fontSize: "11px", margin: 0, textAlign: "right" }}>
           Active {agent.lastActive}
         </p>
       </div>

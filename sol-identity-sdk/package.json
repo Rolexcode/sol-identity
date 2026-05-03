@@ -1,0 +1,27 @@
+﻿{
+  "name": "sol-identity",
+  "version": "1.0.0",
+  "description": "On-chain identity and trust scoring for Solana wallets and .sol domains",
+  "main": "index.js",
+  "type": "module",
+  "keywords": [
+    "solana",
+    "identity",
+    "sns",
+    "web3",
+    "trust-score",
+    "sol-domain",
+    "blockchain"
+  ],
+  "author": "rolexwtv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rolexcode/sol-identity"
+  },
+  "homepage": "https://sol-identity.vercel.app",
+  "peerDependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "@bonfida/spl-name-service": "^3.0.21"
+  }
+}

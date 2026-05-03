@@ -34,16 +34,21 @@
               <h3 style={{ color: t.text, fontSize: "15px", fontWeight: "700", margin: 0 }}>
                 {agent.domain}
               </h3>
-              {agent.verified && (
-                <span style={{
-                  background: "rgba(52,211,153,0.1)",
-                  border: "1px solid rgba(52,211,153,0.3)",
-                  borderRadius: "999px", padding: "2px 8px",
-                  color: "#34d399", fontSize: "10px", fontWeight: "600"
-                }}>
-                  VERIFIED
-                </span>
-              )}
+  {agent.verified && (
+  <span style={{
+    background: agent.onChainVerified
+      ? "rgba(52,211,153,0.1)"
+      : "rgba(251,191,36,0.1)",
+    border: agent.onChainVerified
+      ? "1px solid rgba(52,211,153,0.3)"
+      : "1px solid rgba(251,191,36,0.3)",
+    borderRadius: "999px", padding: "2px 8px",
+    color: agent.onChainVerified ? "#34d399" : "#fbbf24",
+    fontSize: "10px", fontWeight: "600"
+  }}>
+    {agent.onChainVerified ? "ON-CHAIN VERIFIED" : "VERIFIED"}
+  </span>
+)}
             </div>
             <p style={{ color: t.textMuted, fontSize: "12px", margin: "2px 0 0 0" }}>
               {agent.type}

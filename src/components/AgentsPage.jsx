@@ -1,6 +1,6 @@
 ﻿// AgentsPage.jsx
-// Agent Identity Registry
-// Uses SNS on-chain verification to prevent spam registrations
+// Agent Identity Registry with persistent storage via Upstash Redis
+// SNS on-chain verification for domain ownership
 
 import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -21,6 +21,7 @@ function AgentsPage({ theme: t }) {
   const [form, setForm] = useState({
     name: "",
     type: "Trading Agent",
+    solDomain: "",
     agentWallet: "",
     description: "",
   });
@@ -50,32 +51,36 @@ function AgentsPage({ theme: t }) {
 
     try {
       const domainName = form.name.toLowerCase().replace(/\s/g, "-");
-      const domain = `${domainName}.sol`;
 
-      // Query SNS on-chain program to check domain ownership
-      const ownerWallet = await getWalletFromDomain(domain);
+      // Only verify if they provided a .sol domain
+      const solDomain = form.solDomain
+        ? form.solDomain.toLowerCase().replace(".sol", "").trim() + ".sol"
+        : null;
 
       let isVerified = false;
 
-      if (ownerWallet && ownerWallet === publicKey.toString()) {
-        // Connected wallet owns this .sol domain on Solana mainnet
-        isVerified = true;
-      } else if (!ownerWallet) {
-        // Domain does not exist on-chain yet — allow but mark unverified
-        isVerified = false;
-      } else {
-        // Domain exists but owned by a different wallet — reject
-        setVerifyError(
-          `"${domain}" is owned by a different wallet. You can only register domains you own.`
-        );
-        setSaving(false);
-        return;
+      if (solDomain) {
+        // Query SNS on-chain program to verify ownership
+        const ownerWallet = await getWalletFromDomain(solDomain);
+
+        if (ownerWallet && ownerWallet === publicKey.toString()) {
+          // Connected wallet owns this domain
+          isVerified = true;
+        } else if (ownerWallet && ownerWallet !== publicKey.toString()) {
+          // Domain exists but owned by someone else
+          setVerifyError(
+            `"${solDomain}" is owned by a different wallet. You can only register domains you own.`
+          );
+          setSaving(false);
+          return;
+        }
+        // If ownerWallet is null — domain doesnt exist, allow unverified
       }
 
       const newAgent = {
         id: `agent-${Date.now()}`,
         name: domainName,
-        domain,
+        domain: solDomain || domainName,
         type: form.type,
         creatorWallet: publicKey.toString().slice(0, 8) + "..." + publicKey.toString().slice(-4),
         agentWallet: form.agentWallet
@@ -96,7 +101,13 @@ function AgentsPage({ theme: t }) {
       if (saved) {
         setAgents(prev => [newAgent, ...prev]);
         setShowForm(false);
-        setForm({ name: "", type: "Trading Agent", agentWallet: "", description: "" });
+        setForm({
+          name: "",
+          type: "Trading Agent",
+          solDomain: "",
+          agentWallet: "",
+          description: "",
+        });
       }
     } catch (err) {
       console.error("Registration error:", err);
@@ -110,7 +121,10 @@ function AgentsPage({ theme: t }) {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-between", marginBottom: "8px"
+        }}>
           <h2 style={{ color: t.text, fontSize: "20px", fontWeight: "700", margin: 0 }}>
             Agent Registry
           </h2>
@@ -133,7 +147,7 @@ function AgentsPage({ theme: t }) {
         </p>
       </div>
 
-      {/* Wallet connection required message */}
+      {/* Wallet connection required */}
       {!connected && (
         <div style={{
           background: t.surface, border: `1px solid ${t.surfaceBorder}`,
@@ -156,8 +170,14 @@ function AgentsPage({ theme: t }) {
           borderRadius: "12px", padding: "12px 16px", marginBottom: "16px",
           display: "flex", alignItems: "center", gap: "8px"
         }}>
-          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#34d399" }} />
-          <p style={{ color: "#34d399", fontSize: "12px", margin: 0, fontFamily: "monospace" }}>
+          <div style={{
+            width: "8px", height: "8px",
+            borderRadius: "50%", background: "#34d399"
+          }} />
+          <p style={{
+            color: "#34d399", fontSize: "12px",
+            margin: 0, fontFamily: "monospace"
+          }}>
             {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-4)} connected
           </p>
         </div>
@@ -173,19 +193,19 @@ function AgentsPage({ theme: t }) {
             Register New Agent
           </h3>
           <p style={{ color: t.textMuted, fontSize: "12px", margin: "0 0 16px 0" }}>
-            Enter your agent name. If you own the matching .sol domain on Solana,
-            your agent gets verified on-chain and a higher trust score.
-            If the domain is owned by someone else, registration is rejected.
+            Give your agent a name and optionally link a .sol domain you own.
+            Agents with verified .sol domains get the ON-CHAIN VERIFIED badge.
           </p>
 
-          {/* Error message */}
           {verifyError && (
             <div style={{
               background: "rgba(239,68,68,0.08)",
               border: "1px solid rgba(239,68,68,0.2)",
               borderRadius: "10px", padding: "10px 14px", marginBottom: "12px"
             }}>
-              <p style={{ color: "#f87171", fontSize: "12px", margin: 0 }}>{verifyError}</p>
+              <p style={{ color: "#f87171", fontSize: "12px", margin: 0 }}>
+                {verifyError}
+              </p>
             </div>
           )}
 
@@ -207,9 +227,9 @@ function AgentsPage({ theme: t }) {
               />
               {form.name && (
                 <p style={{ color: t.textMuted, fontSize: "11px", margin: "4px 0 0 4px" }}>
-                  Will check ownership of: <strong style={{ color: "#a78bfa" }}>
-                    {form.name.toLowerCase().replace(/\s/g, "-")}.sol
-                  </strong> on Solana mainnet
+                  Agent ID: <strong style={{ color: "#a78bfa" }}>
+                    {form.name.toLowerCase().replace(/\s/g, "-")}
+                  </strong>
                 </p>
               )}
             </div>
@@ -229,6 +249,25 @@ function AgentsPage({ theme: t }) {
               ))}
             </select>
 
+            {/* .sol domain — optional */}
+            <div>
+              <input
+                placeholder=".sol domain you own (optional — enables on-chain verification)"
+                value={form.solDomain}
+                onChange={e => setForm(p => ({ ...p, solDomain: e.target.value }))}
+                style={{
+                  width: "100%", background: t.inputBg,
+                  border: `1px solid ${t.inputBorder}`,
+                  borderRadius: "10px", padding: "10px 14px",
+                  color: t.text, fontSize: "13px", outline: "none",
+                  boxSizing: "border-box"
+                }}
+              />
+              <p style={{ color: t.textFaint, fontSize: "11px", margin: "4px 0 0 4px" }}>
+                If you own a .sol domain, we verify ownership on-chain via SNS
+              </p>
+            </div>
+
             {/* Agent wallet */}
             <input
               placeholder="Agent wallet address (the bot wallet that executes transactions)"
@@ -243,7 +282,7 @@ function AgentsPage({ theme: t }) {
 
             {/* Description */}
             <input
-              placeholder="Description — what does this agent do? (optional)"
+              placeholder="What does this agent do? (optional)"
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               style={{
@@ -314,7 +353,12 @@ function AgentsPage({ theme: t }) {
       {!loadingAgents && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {filtered.map(agent => (
-            <AgentCard key={agent.id} agent={agent} theme={t} />
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              theme={t}
+              connectedWallet={publicKey?.toString()}
+            />
           ))}
         </div>
       )}

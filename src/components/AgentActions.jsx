@@ -32,15 +32,20 @@ function AgentActions({ agentId, isOwner, theme: t }) {
     details: "",
   });
 
-  useEffect(() => {
-    async function fetch() {
-      setLoading(true);
-      const data = await loadAgentActions(agentId);
-      setActions(data);
-      setLoading(false);
-    }
-    fetch();
-  }, [agentId]);
+useEffect(() => {
+  async function fetchActions() {
+    setLoading(true);
+    const data = await loadAgentActions(agentId);
+    setActions(data);
+    setLoading(false);
+  }
+
+  fetchActions();
+
+  // Poll every 15 seconds for new auto-logged actions
+  const interval = setInterval(fetchActions, 15000);
+  return () => clearInterval(interval);
+}, [agentId]);
 
   const handleLog = async () => {
     if (!form.details) return;

@@ -1,6 +1,5 @@
 ﻿// api/webhook.js
-// Vercel serverless function
-// Receives Helius webhook transactions and logs them to agent action history
+// Vercel serverless function — receives Helius webhook transactions
 
 const UPSTASH_URL = process.env.VITE_UPSTASH_URL;
 const UPSTASH_TOKEN = process.env.VITE_UPSTASH_TOKEN;
@@ -8,9 +7,7 @@ const UPSTASH_TOKEN = process.env.VITE_UPSTASH_TOKEN;
 async function redis(command, ...args) {
   const response = await fetch(
     `${UPSTASH_URL}/${command}/${args.join("/")}`,
-    {
-      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
-    }
+    { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } }
   );
   const data = await response.json();
   return data.result;
@@ -29,7 +26,7 @@ function detectActionType(transaction) {
   return "Transaction";
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -51,17 +48,9 @@ export default async function handler(req, res) {
       const feePayer = tx.feePayer;
       if (!feePayer) continue;
 
-      // Match by full wallet address if available
-      // Fallback to prefix matching for older entries
       const matchingAgent = agents.find(agent => {
         if (!agent.agentWallet || agent.agentWallet === "Not provided") return false;
-
-        // Full wallet match — most accurate
-        if (agent.agentWalletFull) {
-          return agent.agentWalletFull === feePayer;
-        }
-
-        // Prefix match fallback
+        if (agent.agentWalletFull) return agent.agentWalletFull === feePayer;
         const storedPrefix = agent.agentWallet.split("...")[0];
         return feePayer.startsWith(storedPrefix);
       });

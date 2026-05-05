@@ -9,6 +9,7 @@ import AgentCard from "./AgentCard";
 import { SAMPLE_AGENTS } from "../data/agents";
 import { saveAgent, loadAgents } from "../utils/upstash";
 import { getWalletFromDomain } from "../utils/sns";
+import { addWalletToWebhook } from "../utils/helius";
 
 function AgentsPage({ theme: t }) {
   const { connected, publicKey } = useWallet();
@@ -26,7 +27,14 @@ function AgentsPage({ theme: t }) {
     description: "",
   });
 
-  const TYPES = ["All", "Trading Agent", "Governance Agent", "NFT Agent", "DeFi Agent", "Custom"];
+  const TYPES = [
+    "All",
+    "Trading Agent",
+    "Governance Agent",
+    "NFT Agent",
+    "DeFi Agent",
+    "Custom",
+  ];
 
   useEffect(() => {
     async function fetchAgents() {
@@ -40,9 +48,8 @@ function AgentsPage({ theme: t }) {
     fetchAgents();
   }, []);
 
-  const filtered = filter === "All"
-    ? agents
-    : agents.filter(a => a.type === filter);
+  const filtered =
+    filter === "All" ? agents : agents.filter((a) => a.type === filter);
 
   const handleRegister = async () => {
     if (!form.name || !connected || !publicKey) return;
@@ -69,7 +76,7 @@ function AgentsPage({ theme: t }) {
         } else if (ownerWallet && ownerWallet !== publicKey.toString()) {
           // Domain exists but owned by someone else
           setVerifyError(
-            `"${solDomain}" is owned by a different wallet. You can only register domains you own.`
+            `"${solDomain}" is owned by a different wallet. You can only register domains you own.`,
           );
           setSaving(false);
           return;
@@ -82,10 +89,14 @@ function AgentsPage({ theme: t }) {
         name: domainName,
         domain: solDomain || domainName,
         type: form.type,
-        creatorWallet: publicKey.toString().slice(0, 8) + "..." + publicKey.toString().slice(-4),
-        agentWallet: form.agentWallet
-          ? form.agentWallet.slice(0, 8) + "..." + form.agentWallet.slice(-4)
-          : "Not provided",
+        creatorWallet:
+          publicKey.toString().slice(0, 8) +
+          "..." +
+          publicKey.toString().slice(-4),
+      agentWallet: form.agentWallet
+  ? form.agentWallet.slice(0, 8) + "..." + form.agentWallet.slice(-4)
+  : "Not provided",
+agentWalletFull: form.agentWallet || null,
         trustScore: isVerified ? 40 : 25,
         trustLevel: isVerified ? "Low Trust" : "Very Low Trust",
         actionsExecuted: 0,
@@ -99,7 +110,11 @@ function AgentsPage({ theme: t }) {
 
       const saved = await saveAgent(newAgent);
       if (saved) {
-        setAgents(prev => [newAgent, ...prev]);
+        // Only add verified agents with wallet addresses to webhook monitoring
+        if (isVerified && form.agentWallet) {
+          await addWalletToWebhook(form.agentWallet);
+        }
+        setAgents((prev) => [newAgent, ...prev]);
         setShowForm(false);
         setForm({
           name: "",
@@ -121,20 +136,36 @@ function AgentsPage({ theme: t }) {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
-        <div style={{
-          display: "flex", alignItems: "center",
-          justifyContent: "space-between", marginBottom: "8px"
-        }}>
-          <h2 style={{ color: t.text, fontSize: "20px", fontWeight: "700", margin: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "8px",
+          }}
+        >
+          <h2
+            style={{
+              color: t.text,
+              fontSize: "20px",
+              fontWeight: "700",
+              margin: 0,
+            }}
+          >
             Agent Registry
           </h2>
           {connected && (
             <button
               onClick={() => setShowForm(!showForm)}
               style={{
-                background: "#7c3aed", border: "none", borderRadius: "10px",
-                padding: "8px 16px", color: "white", fontWeight: "600",
-                fontSize: "12px", cursor: "pointer"
+                background: "#7c3aed",
+                border: "none",
+                borderRadius: "10px",
+                padding: "8px 16px",
+                color: "white",
+                fontWeight: "600",
+                fontSize: "12px",
+                cursor: "pointer",
               }}
             >
               + Register Agent
@@ -142,21 +173,32 @@ function AgentsPage({ theme: t }) {
           )}
         </div>
         <p style={{ color: t.textMuted, fontSize: "13px", margin: 0 }}>
-          On-chain identity layer for autonomous AI agents on Solana.
-          Domain ownership is verified against the SNS program on Solana mainnet.
+          On-chain identity layer for autonomous AI agents on Solana. Domain
+          ownership is verified against the SNS program on Solana mainnet.
         </p>
       </div>
 
       {/* Wallet connection required */}
       {!connected && (
-        <div style={{
-          background: t.surface, border: `1px solid ${t.surfaceBorder}`,
-          borderRadius: "16px", padding: "24px", marginBottom: "20px",
-          textAlign: "center"
-        }}>
-          <p style={{ color: t.textMuted, fontSize: "13px", margin: "0 0 16px 0" }}>
-            Connect your wallet to register an agent.
-            If you own a .sol domain, your agent will be verified on-chain via SNS.
+        <div
+          style={{
+            background: t.surface,
+            border: `1px solid ${t.surfaceBorder}`,
+            borderRadius: "16px",
+            padding: "24px",
+            marginBottom: "20px",
+            textAlign: "center",
+          }}
+        >
+          <p
+            style={{
+              color: t.textMuted,
+              fontSize: "13px",
+              margin: "0 0 16px 0",
+            }}
+          >
+            Connect your wallet to register an agent. If you own a .sol domain,
+            your agent will be verified on-chain via SNS.
           </p>
           <WalletMultiButton />
         </div>
@@ -164,70 +206,121 @@ function AgentsPage({ theme: t }) {
 
       {/* Connected wallet indicator */}
       {connected && publicKey && (
-        <div style={{
-          background: "rgba(52,211,153,0.05)",
-          border: "1px solid rgba(52,211,153,0.2)",
-          borderRadius: "12px", padding: "12px 16px", marginBottom: "16px",
-          display: "flex", alignItems: "center", gap: "8px"
-        }}>
-          <div style={{
-            width: "8px", height: "8px",
-            borderRadius: "50%", background: "#34d399"
-          }} />
-          <p style={{
-            color: "#34d399", fontSize: "12px",
-            margin: 0, fontFamily: "monospace"
-          }}>
-            {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-4)} connected
+        <div
+          style={{
+            background: "rgba(52,211,153,0.05)",
+            border: "1px solid rgba(52,211,153,0.2)",
+            borderRadius: "12px",
+            padding: "12px 16px",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <div
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background: "#34d399",
+            }}
+          />
+          <p
+            style={{
+              color: "#34d399",
+              fontSize: "12px",
+              margin: 0,
+              fontFamily: "monospace",
+            }}
+          >
+            {publicKey.toString().slice(0, 8)}...
+            {publicKey.toString().slice(-4)} connected
           </p>
         </div>
       )}
 
       {/* Registration form */}
       {showForm && connected && (
-        <div style={{
-          background: t.surface, border: `1px solid ${t.surfaceBorder}`,
-          borderRadius: "16px", padding: "20px", marginBottom: "20px"
-        }}>
-          <h3 style={{ color: t.text, fontSize: "14px", fontWeight: "700", margin: "0 0 4px 0" }}>
+        <div
+          style={{
+            background: t.surface,
+            border: `1px solid ${t.surfaceBorder}`,
+            borderRadius: "16px",
+            padding: "20px",
+            marginBottom: "20px",
+          }}
+        >
+          <h3
+            style={{
+              color: t.text,
+              fontSize: "14px",
+              fontWeight: "700",
+              margin: "0 0 4px 0",
+            }}
+          >
             Register New Agent
           </h3>
-          <p style={{ color: t.textMuted, fontSize: "12px", margin: "0 0 16px 0" }}>
+          <p
+            style={{
+              color: t.textMuted,
+              fontSize: "12px",
+              margin: "0 0 16px 0",
+            }}
+          >
             Give your agent a name and optionally link a .sol domain you own.
             Agents with verified .sol domains get the ON-CHAIN VERIFIED badge.
           </p>
 
           {verifyError && (
-            <div style={{
-              background: "rgba(239,68,68,0.08)",
-              border: "1px solid rgba(239,68,68,0.2)",
-              borderRadius: "10px", padding: "10px 14px", marginBottom: "12px"
-            }}>
+            <div
+              style={{
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.2)",
+                borderRadius: "10px",
+                padding: "10px 14px",
+                marginBottom: "12px",
+              }}
+            >
               <p style={{ color: "#f87171", fontSize: "12px", margin: 0 }}>
                 {verifyError}
               </p>
             </div>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+          >
             {/* Agent name */}
             <div>
               <input
                 placeholder="Agent name (e.g. my-trader-bot)"
                 value={form.name}
-                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
                 style={{
-                  width: "100%", background: t.inputBg,
+                  width: "100%",
+                  background: t.inputBg,
                   border: `1px solid ${t.inputBorder}`,
-                  borderRadius: "10px", padding: "10px 14px",
-                  color: t.text, fontSize: "13px", outline: "none",
-                  boxSizing: "border-box"
+                  borderRadius: "10px",
+                  padding: "10px 14px",
+                  color: t.text,
+                  fontSize: "13px",
+                  outline: "none",
+                  boxSizing: "border-box",
                 }}
               />
               {form.name && (
-                <p style={{ color: t.textMuted, fontSize: "11px", margin: "4px 0 0 4px" }}>
-                  Agent ID: <strong style={{ color: "#a78bfa" }}>
+                <p
+                  style={{
+                    color: t.textMuted,
+                    fontSize: "11px",
+                    margin: "4px 0 0 4px",
+                  }}
+                >
+                  Agent ID:{" "}
+                  <strong style={{ color: "#a78bfa" }}>
                     {form.name.toLowerCase().replace(/\s/g, "-")}
                   </strong>
                 </p>
@@ -237,15 +330,21 @@ function AgentsPage({ theme: t }) {
             {/* Agent type */}
             <select
               value={form.type}
-              onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
+              onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
               style={{
-                background: t.inputBg, border: `1px solid ${t.inputBorder}`,
-                borderRadius: "10px", padding: "10px 14px",
-                color: t.text, fontSize: "13px", outline: "none"
+                background: t.inputBg,
+                border: `1px solid ${t.inputBorder}`,
+                borderRadius: "10px",
+                padding: "10px 14px",
+                color: t.text,
+                fontSize: "13px",
+                outline: "none",
               }}
             >
-              {TYPES.filter(type => type !== "All").map(type => (
-                <option key={type} value={type}>{type}</option>
+              {TYPES.filter((type) => type !== "All").map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
             </select>
 
@@ -254,16 +353,28 @@ function AgentsPage({ theme: t }) {
               <input
                 placeholder=".sol domain you own (optional — enables on-chain verification)"
                 value={form.solDomain}
-                onChange={e => setForm(p => ({ ...p, solDomain: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, solDomain: e.target.value }))
+                }
                 style={{
-                  width: "100%", background: t.inputBg,
+                  width: "100%",
+                  background: t.inputBg,
                   border: `1px solid ${t.inputBorder}`,
-                  borderRadius: "10px", padding: "10px 14px",
-                  color: t.text, fontSize: "13px", outline: "none",
-                  boxSizing: "border-box"
+                  borderRadius: "10px",
+                  padding: "10px 14px",
+                  color: t.text,
+                  fontSize: "13px",
+                  outline: "none",
+                  boxSizing: "border-box",
                 }}
               />
-              <p style={{ color: t.textFaint, fontSize: "11px", margin: "4px 0 0 4px" }}>
+              <p
+                style={{
+                  color: t.textFaint,
+                  fontSize: "11px",
+                  margin: "4px 0 0 4px",
+                }}
+              >
                 If you own a .sol domain, we verify ownership on-chain via SNS
               </p>
             </div>
@@ -272,11 +383,17 @@ function AgentsPage({ theme: t }) {
             <input
               placeholder="Agent wallet address (the bot wallet that executes transactions)"
               value={form.agentWallet}
-              onChange={e => setForm(p => ({ ...p, agentWallet: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, agentWallet: e.target.value }))
+              }
               style={{
-                background: t.inputBg, border: `1px solid ${t.inputBorder}`,
-                borderRadius: "10px", padding: "10px 14px",
-                color: t.text, fontSize: "13px", outline: "none"
+                background: t.inputBg,
+                border: `1px solid ${t.inputBorder}`,
+                borderRadius: "10px",
+                padding: "10px 14px",
+                color: t.text,
+                fontSize: "13px",
+                outline: "none",
               }}
             />
 
@@ -284,11 +401,17 @@ function AgentsPage({ theme: t }) {
             <input
               placeholder="What does this agent do? (optional)"
               value={form.description}
-              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, description: e.target.value }))
+              }
               style={{
-                background: t.inputBg, border: `1px solid ${t.inputBorder}`,
-                borderRadius: "10px", padding: "10px 14px",
-                color: t.text, fontSize: "13px", outline: "none"
+                background: t.inputBg,
+                border: `1px solid ${t.inputBorder}`,
+                borderRadius: "10px",
+                padding: "10px 14px",
+                color: t.text,
+                fontSize: "13px",
+                outline: "none",
               }}
             />
 
@@ -297,21 +420,33 @@ function AgentsPage({ theme: t }) {
                 onClick={handleRegister}
                 disabled={saving || !form.name}
                 style={{
-                  background: "#7c3aed", border: "none", borderRadius: "10px",
-                  padding: "10px 20px", color: "white", fontWeight: "600",
-                  fontSize: "13px", cursor: "pointer",
-                  opacity: (saving || !form.name) ? 0.6 : 1
+                  background: "#7c3aed",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "10px 20px",
+                  color: "white",
+                  fontWeight: "600",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  opacity: saving || !form.name ? 0.6 : 1,
                 }}
               >
                 {saving ? "Verifying on-chain..." : "Register Agent"}
               </button>
               <button
-                onClick={() => { setShowForm(false); setVerifyError(null); }}
+                onClick={() => {
+                  setShowForm(false);
+                  setVerifyError(null);
+                }}
                 style={{
-                  background: t.inputBg, border: `1px solid ${t.inputBorder}`,
-                  borderRadius: "10px", padding: "10px 20px",
-                  color: t.textMuted, fontWeight: "600",
-                  fontSize: "13px", cursor: "pointer"
+                  background: t.inputBg,
+                  border: `1px solid ${t.inputBorder}`,
+                  borderRadius: "10px",
+                  padding: "10px 20px",
+                  color: t.textMuted,
+                  fontWeight: "600",
+                  fontSize: "13px",
+                  cursor: "pointer",
                 }}
               >
                 Cancel
@@ -322,17 +457,27 @@ function AgentsPage({ theme: t }) {
       )}
 
       {/* Filter tabs */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
-        {TYPES.map(type => (
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          marginBottom: "16px",
+          flexWrap: "wrap",
+        }}
+      >
+        {TYPES.map((type) => (
           <button
             key={type}
             onClick={() => setFilter(type)}
             style={{
               background: filter === type ? "#7c3aed" : t.inputBg,
               border: `1px solid ${filter === type ? "#7c3aed" : t.inputBorder}`,
-              borderRadius: "999px", padding: "6px 14px",
+              borderRadius: "999px",
+              padding: "6px 14px",
               color: filter === type ? "white" : t.textMuted,
-              fontSize: "11px", fontWeight: "600", cursor: "pointer"
+              fontSize: "11px",
+              fontWeight: "600",
+              cursor: "pointer",
             }}
           >
             {type}
@@ -352,7 +497,7 @@ function AgentsPage({ theme: t }) {
       {/* Agent cards */}
       {!loadingAgents && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {filtered.map(agent => (
+          {filtered.map((agent) => (
             <AgentCard
               key={agent.id}
               agent={agent}

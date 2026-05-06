@@ -266,7 +266,7 @@ Open `http://localhost:5173`
 
 - **Multi-domain support** — list all .sol domains owned by a wallet via Helius indexer
 - **On-chain agent program** — migrate agent registry to a custom Solana program
-- **Automatic action logging** — record agent transactions on-chain via Helius webhooks
+- **Automatic action logging** — record agent transactions on-chain via Helius webhook
 - **Reputation portability** — export identity profiles as verifiable credentials
 - **npm v2** — expanded SDK with React hooks and UI components
 

@@ -2,7 +2,7 @@
 
 **The identity and trust layer for Solana.**
 
-SolIdentity turns any Solana wallet address or .sol domain into a verifiable identity profile — complete with a trust score, on-chain history, and social records. It also provides an agent registry where AI agents can establish verified on-chain identities using SNS domains.
+SolIdentity turns any Solana wallet address or .sol domain into a verifiable identity profile — complete with a trust score, on-chain history, social records, and an agent registry for AI agents operating on Solana.
 
 > Think of it as "Login with Google" — but decentralized, permissionless, and powered entirely by on-chain data.
 
@@ -21,71 +21,85 @@ Today, every Solana dApp sees this when a user connects:
 
 Just an address. No name. No history. No way to know if this is a real user, a bot, or a sybil wallet created 5 minutes ago.
 
-This creates real problems:
+This creates real problems across the ecosystem:
 
-- **Airdrops** get farmed by bots and sybil wallets
-- **DAOs** get manipulated by fake voters
-- **dApps** treat all wallets equally regardless of history
-- **AI agents** have no verifiable identity or accountability
+- Airdrops get farmed by bots and sybil wallets
+- DAOs get manipulated by fake or low-quality voters
+- dApps treat all wallets equally regardless of on-chain history
+- AI agents operating on Solana have no verifiable identity or accountability layer
 
-SolIdentity fixes this.
+SolIdentity fixes all of this.
+
+---
+
+## What We Built
+
+SolIdentity is two things in one:
+
+**1. Social Identity** — A trust scoring and identity resolution layer for human wallets. Search any .sol domain or wallet address and get a complete on-chain identity profile including domain name, trust score, transaction history, wallet age, SOL balance, and SNS social records.
+
+**2. Agent Identity** — A verified registry for AI agents operating on Solana. Agents register with a .sol identity. Ownership is verified against the SNS on-chain program before registration is accepted. This prevents spam and makes the registry sybil-resistant by design.
 
 ---
 
 ## How It Works
 
-### Social Identity
+### Social Identity Flow
 
-1. User connects their Phantom wallet or searches any .sol domain
-2. SolIdentity queries the **SNS on-chain program** to resolve the domain
-3. Fetches wallet transaction history from Solana mainnet RPC
-4. Retrieves SNS profile records (Twitter, website, avatar)
+1. User connects Phantom wallet or searches any .sol domain or wallet address
+2. SolIdentity queries the SNS on-chain program to resolve the domain
+3. Fetches wallet transaction history and balance from Solana mainnet RPC
+4. Retrieves SNS profile records — Twitter handle, website, avatar
 5. Calculates a trust score from verified on-chain signals
-6. Returns a structured identity profile
+6. Returns a structured identity profile instantly
 
-### Agent Identity
+### Agent Identity Flow
 
-1. Developer or operator connects their wallet
-2. Enters their agent name — SolIdentity checks if they own the matching .sol domain on-chain
-3. If ownership is verified via SNS → agent is registered as **ON-CHAIN VERIFIED**
-4. If domain is owned by someone else → registration is rejected (sybil prevention)
-5. If domain does not exist → agent is registered as unverified
-6. All registered agents are stored persistently and visible to everyone
+1. Operator connects their Phantom wallet
+2. Enters their agent name and optionally their .sol domain
+3. SolIdentity queries the SNS program on-chain to verify domain ownership
+4. If the connected wallet owns the domain — agent is registered as ON-CHAIN VERIFIED
+5. If the domain belongs to a different wallet — registration is rejected
+6. If no domain is provided — agent registers as unverified
+7. All agents persist in the registry and are visible to everyone
 
 ---
 
 ## On-Chain Architecture
 
-SolIdentity reads directly from Solana smart contracts. No centralized API. No off-chain data sources for identity.
+SolIdentity reads directly from Solana smart contracts. No centralized API. No off-chain data sources for identity resolution.
 
 **SNS Program** (`namesLPaMn8YnUQcc7EgFnSY2L9pAXQnQhBBqjnmX`)
 
 Every identity lookup and agent verification queries this program directly:
 
-- `.sol domain resolution` — resolves any domain to its owner wallet
-- `Reverse lookup` — finds the primary .sol domain for any wallet address
+- `.sol domain resolution` — resolves any domain to its owner wallet address
+- `Reverse lookup` — finds the primary .sol domain for any wallet
 - `Profile records` — fetches Twitter, website, and social records stored on-chain
-- `Ownership verification` — confirms which wallet owns a given .sol domain
+- `Ownership verification` — confirms which wallet owns a given .sol domain before agent registration
 
 **Data Flow:**
 Input (.sol domain or wallet address)
-↓
-SNS On-Chain Program → resolve domain → wallet address
-↓
-Solana RPC → transaction history, balance, account age
-↓
-Trust Score Algorithm → structured identity profile
+|
+v
+SNS On-Chain Program --> resolve domain --> wallet address
+|
+v
+Solana Mainnet RPC --> transaction history, balance, account age
+|
+v
+Trust Score Algorithm --> structured identity profile
 
 **Why this matters:**
-- Identity data is publicly verifiable by anyone
+- Identity data is publicly verifiable by anyone on-chain
 - Cannot be censored, manipulated, or taken offline
-- No single point of failure
+- No single point of failure or centralized control
 
 ---
 
 ## Trust Score
 
-SolIdentity scores wallets based on signals that are **costly to fake and easy to verify**:
+SolIdentity scores wallets based on signals that are costly to fake and easy to verify:
 
 | Signal | Max Points | Why It Matters |
 |--------|-----------|----------------|
@@ -98,12 +112,12 @@ SolIdentity scores wallets based on signals that are **costly to fake and easy t
 
 | Score | Level |
 |-------|-------|
-| 75 - 100 | High Trust |
-| 50 - 74 | Medium Trust |
-| 25 - 49 | Low Trust |
-| 0 - 24 | Very Low Trust |
+| 75-100 | High Trust |
+| 50-74 | Medium Trust |
+| 25-49 | Low Trust |
+| 0-24 | Very Low Trust |
 
-**Accuracy:** Wallet age and transaction count are calculated by paginating up to 2,000 transactions on Solana mainnet — giving accurate historical data for the vast majority of wallets.
+Wallet age and transaction count are calculated by paginating up to 2,000 on-chain transactions — giving accurate historical data for the vast majority of wallets.
 
 ---
 
@@ -113,31 +127,31 @@ The Agent Registry is an on-chain verified directory of AI agents operating on S
 
 **The problem it solves:**
 
-AI agents are increasingly common on Solana — trading bots, governance agents, yield optimizers. Right now these agents are anonymous. You cannot tell if an agent is legitimate, who created it, or what it has done.
+AI agents are increasingly active on Solana — trading bots, governance agents, yield optimizers, NFT buyers. Right now these agents are completely anonymous. You cannot tell if an agent is legitimate, who built it, or what it has done. There is no accountability layer.
 
 **How verification works:**
 
-When registering an agent, SolIdentity queries the SNS program to check if the registering wallet owns the agent's .sol domain. This means:
+When registering an agent, SolIdentity queries the SNS program to verify the registering wallet actually owns the agent's .sol domain. This means:
 
 - Only the real owner of `my-bot.sol` can register `my-bot.sol` as an agent
 - Attempts to register domains owned by others are rejected on-chain
-- Verified agents display an **ON-CHAIN VERIFIED** badge
-- Agents without a .sol domain can still register but remain unverified
+- Verified agents display an ON-CHAIN VERIFIED badge
+- Agents without a .sol domain can register but remain unverified
 
 **Agent profiles include:**
-- Agent domain (.sol identity)
-- Creator wallet (human owner — accountability)
-- Agent wallet (bot wallet — the executor)
-- Agent type (Trading, Governance, NFT, DeFi, Custom)
+- Agent name and .sol identity
+- Creator wallet — the human owner, establishing accountability
+- Agent wallet — the bot wallet that executes transactions
+- Agent type — Trading, Governance, NFT, DeFi, or Custom
 - Trust score
-- Action history (executions, failures, success rate)
-- Active duration
+- Action log — operators can record significant agent actions
+- Active duration and last activity
 
 ---
 
 ## SDK
 
-SolIdentity is built as a reusable SDK. Any Solana dApp can integrate identity and trust scoring in minutes.
+SolIdentity is built as a reusable SDK published on npm. Any Solana dApp can integrate identity and trust scoring in minutes.
 
 ### Install
 
@@ -150,11 +164,9 @@ npm install sol-identity
 ```js
 import { getIdentity } from 'sol-identity'
 
-// Works with .sol domains
-const identity = await getIdentity("bonfida.sol")
-
-// Works with raw wallet addresses
-const identity = await getIdentity("9oFYps...gjTv")
+const identity = await getIdentity("bonfida.sol", {
+  rpcUrl: "https://your-rpc-url.com"
+})
 
 console.log(identity)
 // {
@@ -171,11 +183,12 @@ console.log(identity)
 ```js
 import { getTrustScore } from 'sol-identity'
 
-const { score, level } = await getTrustScore(walletAddress)
+const { score } = await getTrustScore(walletAddress, {
+  rpcUrl: "https://your-rpc-url.com"
+})
 
-if (score < 40) {
-  return "Access denied — low trust wallet"
-}
+if (score < 40) return "Access denied — low trust wallet"
+if (score >= 75) grantFullAccess()
 ```
 
 ### Resolve a .sol domain
@@ -183,16 +196,12 @@ if (score < 40) {
 ```js
 import { resolveDomain } from 'sol-identity'
 
-const result = await resolveDomain("bonfida.sol")
-// { walletAddress: "HxK8...", records: { twitter: "bonfida", url: "..." } }
-```
-
-### Custom RPC
-
-```js
-const identity = await getIdentity("bonfida.sol", {
+const result = await resolveDomain("bonfida.sol", {
   rpcUrl: "https://your-rpc-url.com"
 })
+
+console.log(result.walletAddress) // "HxK8..."
+console.log(result.records.twitter) // "bonfida"
 ```
 
 ---
@@ -203,17 +212,17 @@ const identity = await getIdentity("bonfida.sol", {
 - Replace raw wallet addresses with named, scored identities at login
 - Gate airdrops, governance votes, or premium features by minimum trust score
 - Display reputation scores in community dashboards and leaderboards
-- Verify agent identities before allowing automated interactions
+- Verify AI agent identities before allowing automated interactions
 
 **For users:**
 - Understand your on-chain reputation score
-- See exactly how protocols will evaluate your wallet
+- See exactly how protocols evaluate your wallet
 - Search and verify any .sol identity instantly
 
 **For AI agent operators:**
 - Give your agent a verifiable on-chain identity
-- Establish accountability through SNS domain ownership
-- Build trust with users and protocols over time
+- Establish accountability through SNS domain ownership verification
+- Build trust with users and protocols over time through logged actions
 
 ---
 
@@ -225,9 +234,10 @@ const identity = await getIdentity("bonfida.sol", {
 | Blockchain | @solana/web3.js |
 | Identity | @bonfida/spl-name-service |
 | Wallet | Solana Wallet Adapter (Phantom) |
-| Storage | Upstash Redis (agent registry) |
+| Caching | In-memory cache (5 minute TTL) |
+| Storage | Upstash Redis (agent registry persistence) |
 | Hosting | Vercel |
-| Package | npm (sol-identity) |
+| Package | npm — sol-identity@1.0.1 |
 
 ---
 
@@ -256,7 +266,7 @@ Open `http://localhost:5173`
 
 - **Multi-domain support** — list all .sol domains owned by a wallet via Helius indexer
 - **On-chain agent program** — migrate agent registry to a custom Solana program
-- **Agent action logging** — record agent transactions on-chain with identity attached
+- **Automatic action logging** — record agent transactions on-chain via Helius webhooks
 - **Reputation portability** — export identity profiles as verifiable credentials
 - **npm v2** — expanded SDK with React hooks and UI components
 

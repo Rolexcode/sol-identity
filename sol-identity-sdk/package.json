@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "sol-identity",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "On-chain identity and trust scoring for Solana wallets and .sol domains",
   "main": "index.js",
   "type": "module",
